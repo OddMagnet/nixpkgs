@@ -11,7 +11,7 @@
   versionCheckHook,
   rolldown,
   installShellFiles,
-  version ? "2026.4.11",
+  version ? "2026.4.22",
 }:
 stdenvNoCC.mkDerivation (finalAttrs: {
   pname = "openclaw";
@@ -21,10 +21,10 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     owner = "openclaw";
     repo = "openclaw";
     tag = "v${finalAttrs.version}";
-    hash = "sha256-KDRcjb6nuJ67X7ZImjBgyWyS4YXQlv8OOAkZdZa39Ds=";
+    hash = "sha256-BB+stGBDgMRAPHrVWJS2dFRjw2WrVrFdVf/23Tq1UeA=";
   };
 
-  pnpmDepsHash = "sha256-fVy4T/JPOX0Ts6/D8pb/2iVxYy/GXJQsdefg84pl4cc=";
+  pnpmDepsHash = "sha256-z45mB/w7sorAE3CTliDpvMm9eq+/l9L/mmhYJt0t9O4=";
 
   pnpmDeps = fetchPnpmDeps {
     inherit (finalAttrs) pname version src;
@@ -70,15 +70,33 @@ stdenvNoCC.mkDerivation (finalAttrs: {
           continue;
         }' \
       --replace-fail \
-        'stageInstalledRootRuntimeDeps({ fingerprint, packageJson, pluginDir, repoRoot })
-      ) {
-        return;
-      }' \
-        'stageInstalledRootRuntimeDeps({ fingerprint, packageJson, pluginDir, repoRoot })
-      ) {
-        return;
-      }
-      return; // nix: sandbox has no npm'
+        '    if (
+          stageInstalledRootRuntimeDeps({
+            directDependencyPackageRoot,
+            fingerprint,
+            packageJson,
+            pluginDir,
+            pruneConfig,
+            repoRoot,
+            stampPath,
+          })
+        ) {
+          continue;
+        }' \
+        '    if (
+          stageInstalledRootRuntimeDeps({
+            directDependencyPackageRoot,
+            fingerprint,
+            packageJson,
+            pluginDir,
+            pruneConfig,
+            repoRoot,
+            stampPath,
+          })
+        ) {
+          continue;
+        }
+        continue; // nix: sandbox has no npm'
     pnpm build
     pnpm ui:build
 
@@ -119,9 +137,9 @@ stdenvNoCC.mkDerivation (finalAttrs: {
     in
     ''
       installShellCompletion --cmd openclaw \
-        --bash <(${emulator} $out/bin/openclaw completion --shell bash) \
-        --fish <(${emulator} $out/bin/openclaw completion --shell fish) \
-        --zsh <(${emulator} $out/bin/openclaw completion --shell zsh)
+        --bash <(OPENCLAW_SKIP_PLUGIN_CLI=1 ${emulator} $out/bin/openclaw completion --shell bash) \
+        --fish <(OPENCLAW_SKIP_PLUGIN_CLI=1 ${emulator} $out/bin/openclaw completion --shell fish) \
+        --zsh  <(OPENCLAW_SKIP_PLUGIN_CLI=1 ${emulator} $out/bin/openclaw completion --shell zsh)
     ''
   );
 
@@ -129,6 +147,10 @@ stdenvNoCC.mkDerivation (finalAttrs: {
   doInstallCheck = true;
 
   passthru.updateScript = ./update.sh;
+
+  patches = [
+    ./skip-bundled-runtime-install.patch
+  ];
 
   meta = {
     description = "Self-hosted, open-source AI assistant/agent";
